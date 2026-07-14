@@ -1,0 +1,30 @@
+{:itonami.blueprint/id "cloud-itonami-isic-1610"
+ :itonami.blueprint/name "Sawmilling and planing of wood"
+ :itonami.blueprint/isic-rev5 "1610"
+ :itonami.blueprint/domain :wood-products/sawmilling
+ :itonami.blueprint/license "AGPL-3.0-or-later"
+ :itonami.blueprint/social-impact [:worker-safety :local-economy :resource-efficiency]
+ :itonami.blueprint/governor :sawmill-plant-operations-governor
+ :itonami.blueprint/robotics true
+ :itonami.blueprint/required-technologies [:robotics :identity :forms :dmn :bpmn :audit-ledger :telemetry]
+ :itonami.blueprint/status :public-oss
+ :itonami.blueprint/maturity :implemented
+ :itonami.blueprint/implemented-slice
+ "SawmillAdvisor ⊣ Sawmill Plant Operations Governor, langgraph-clj
+ StateGraph, append-only audit ledger. A plant OPERATIONS COORDINATION
+ actor for sawmilling/planing (saws, planers, kilns) -- not direct
+ saw/planer-equipment operation authority. Four ops
+ (`:log-production-batch` / `:schedule-maintenance` / `:flag-safety-
+ concern` / `:coordinate-shipment`), all `:effect :propose` only. Ten
+ concrete governor checks elaborate this blueprint's four HARD
+ invariants: propose-only effect, closed op allowlist, closed
+ proposal-effect allowlist (no direct saw/planer-equipment control),
+ permanent kiln-schedule-finalize block, independent equipment
+ verification/registration before maintenance scheduling, independent
+ batch verification/registration before shipment coordination,
+ independent shipment-volume recompute against the batch's own logged
+ volume, double-schedule guard, lumber-grade validation, and
+ moisture-content plausibility validation. Safety-concern flagging
+ ALWAYS escalates to a human plant supervisor; `:log-production-batch`
+ is the only op eligible to auto-commit, and only at phase 3 when
+ governor-clean."}
