@@ -1,5 +1,5 @@
 (ns sawmilling.registry-test
-  (:require [clojure.test :refer [deftest is]]
+  (:require [clojure.test :refer [deftest is testing]]
             [sawmilling.registry :as r]))
 
 ;; ----------------------------- equipment-verified? / equipment-registered? / equipment-ready? -----------------------------
@@ -142,3 +142,48 @@
     (is (= 2 (count hist2)))
     (is (= "MNT-000000" (get-in hist2 [0 "record_id"])))
     (is (= "MNT-000001" (get-in hist2 [1 "record_id"])))))
+
+;; ---------------------------------------------------------------------------
+;; Capacity headroom: exact at the boundary, and un-checkable is not headroom
+;; ---------------------------------------------------------------------------
+
+(deftest a-shipment-filling-a-batch-exactly-is-not-over-capacity
+  (testing "`(> (+ (double so-far) (double new)) (double capacity))` flagged 43
+            of 2,865 exactly-at-capacity shipments as over, because the sum is
+            not the double nearest the true total"
+    (doseq [[cap so-far] [[209.67 60.8043] [100.0 33.33] [1000.10 0.07]
+                          [55.96 10.0] [30.09 10.03]]]
+      (let [new (- cap so-far)]
+        (is (not (r/shipment-volume-exceeded? {:volume-board-ft cap
+                                               :shipped-volume-board-ft so-far}
+                                              new))
+            (str so-far " + " new " should fill " cap " exactly, not exceed it"))))))
+
+(deftest an-exhaustive-boundary-sweep-finds-no-false-over-capacity
+  (let [bad (for [cap-c (range 10000 200000 997)
+                  frac (range 1 100 7)
+                  :let [cap (/ cap-c 100.0)
+                        so-far (/ (* cap-c frac) 10000.0)
+                        new (- cap so-far)]
+                  :when (r/shipment-volume-exceeded?
+                         {:volume-board-ft cap :shipped-volume-board-ft so-far} new)]
+              [cap so-far new])]
+    (is (empty? bad) (str "false over-capacity: " (count bad) " e.g. " (first bad)))))
+
+(deftest a-genuine-overshoot-is-still-caught
+  (is (r/shipment-volume-exceeded? {:volume-board-ft 100.0 :shipped-volume-board-ft 60.0} 40.01))
+  (is (r/shipment-volume-exceeded? {:volume-board-ft 100.0 :shipped-volume-board-ft 0.0} 100.0001)))
+
+(deftest un-checkable-headroom-is-reported-rather-than-passing-as-not-over
+  (testing "the predicate's own guard made every un-checkable case fall through
+            as `not over`, so a batch with no recorded capacity shipped anything"
+    (is (not (r/shipment-volume-checkable? {:shipped-volume-board-ft 0.0} 10.0))
+        "no recorded capacity")
+    (is (not (r/shipment-volume-checkable? {:volume-board-ft 100.0} nil))
+        "no stated shipment volume")
+    (is (not (r/shipment-volume-checkable? {:volume-board-ft "100"} 10.0))
+        "non-numeric capacity")
+    (is (not (r/shipment-volume-checkable? nil 10.0))
+        "no batch at all")
+    (is (r/shipment-volume-checkable? {:volume-board-ft 100.0 :shipped-volume-board-ft 10.0} 5.0)
+        "a fully recorded batch IS checkable")))
