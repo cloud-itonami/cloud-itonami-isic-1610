@@ -112,7 +112,29 @@
         so-far (:shipped-volume-board-ft batch 0.0)]
     (and (number? capacity)
          (number? new-volume-board-ft)
-         (> (+ (double so-far) (double new-volume-board-ft)) (double capacity)))))
+         (number? so-far)
+         ;; Compared at 1/10000 board-ft, not on raw doubles. A shipment
+         ;; that fills a batch EXACTLY to its recorded capacity is legal,
+         ;; and `(> (+ so-far new) capacity)` on doubles flagged 43 of
+         ;; 2,865 such shipments as over-capacity because the sum is not
+         ;; the double nearest the true total.
+         (> (Math/round (* 10000 (+ (double so-far) (double new-volume-board-ft))))
+            (Math/round (* 10000 (double capacity)))))))
+
+(defn shipment-volume-checkable?
+  "Can `batch`'s capacity headroom actually be computed for a shipment of
+  `new-volume-board-ft`?
+
+  `shipment-volume-exceeded?` answers only `over` / `not over`, and its
+  `(and (number? capacity) ...)` guard made every un-checkable case fall
+  through as `not over` -- a batch with no recorded `:volume-board-ft`,
+  or a shipment stating no volume, passed the over-capacity check
+  silently. Callers must ask this first: un-checkable is not headroom."
+  [batch new-volume-board-ft]
+  (boolean (and (map? batch)
+                (number? (:volume-board-ft batch))
+                (number? (:shipped-volume-board-ft batch 0.0))
+                (number? new-volume-board-ft))))
 
 (defn grade-valid?
   "Is `grade` one of the closed, known lumber-grade values? nil/blank
