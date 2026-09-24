@@ -1,0 +1,34 @@
+;; What this vertical's robot physically does, declared for
+;; kotoba.robotics.process (kotoba-lang/robotics). `kbb -M:dev:physics` runs it.
+;;
+;; README has no "Robotics premise" section. The sawmill saws, planes and
+;; kiln-dries lumber. Its physical work here: heating stacked boards in the
+;; kiln until the middle of each board reaches the ISPM 15 heat-treatment
+;; core temperature, and hauling lumber packages up the yard ramp.
+;;
+;; Every number without a cited source is marked `estimate` in its :basis.
+;; Replacing an estimate with a sourced value is this bot's growth work.
+{:physics/schema "itonami.physical-ai.spec.v1"
+ :repo "cloud-itonami/cloud-itonami-isic-1610"
+ :cases
+ [{:id :kiln-core-heat
+   :kind :thermal
+   :procedure "stickered boards heat in the dry kiln (air on both faces) until the middle of the board reaches 56 C, the ISPM 15 heat-treatment core temperature; swept :thickness-m is HALF the thickness (heated face to mid-plane), mid-plane adiabatic by symmetry, so the back face is the middle"
+   :params {:conductivity-w-mk 0.15 :density-kg-m3 700.0 :specific-heat-j-kgk 2000.0
+            :t0-c 15.0 :t-hot-c 70.0 :h-front-w-m2k 15.0 :t-back-ambient-c 15.0 :h-back-w-m2k 0.0
+            :threshold-c 56.0 :duration-s 43200.0 :nodes 11}
+   :sweep {:param :thickness-m :values [0.0125 0.019 0.025 0.038 0.05]}
+   :quantity :time-to-threshold-s
+   :limit {:max 21600.0 :basis "estimate: 6-hour heat-up allowance in the kiln schedule before the ISPM 15 hold (56 C core for 30 min) can start"}
+   :boundary {:lo 0.005 :hi 0.1}}
+  {:id :lumber-package-yard-ramp
+   :kind :transport
+   :procedure "yard carrier hauls a 2.5 t lumber package from the planer mill up the yard ramp to the dry-storage shed"
+   :params {:mass-kg 2500.0 :payload-kg 2500.0 :distance-m 100.0 :v-max-mps 2.0 :a-max-mps2 0.5
+            :brake-decel-mps2 1.0 :drive-force-n 6000.0 :crr 0.02
+            :cog-height-m 0.8 :payload-cog-height-m 1.4 :support-half-length-m 1.0
+            :max-time-s 3600.0}
+   :sweep {:param :slope-deg :values [0.0 2.0 4.0 5.0 6.0]}
+   :quantity :cycle-time-s
+   :limit {:max 90.0 :basis "estimate: one yard leg per planer-mill package interval; a stall (drive force below grade + rolling resistance) is out of tolerance"}
+   :boundary {:lo 0.0 :hi 10.0}}]}
